@@ -17,7 +17,11 @@
 					md-card-area
 						md-card-header
 							div(class="md-title") CC Cognito
-				md-card-content
+				md-spinner(
+					md-indeterminate
+						v-if="loading"
+				)
+				md-card-content(v-if="!loading")
 					md-input-container
 						label Username
 						md-input(v-model="username")
@@ -27,8 +31,13 @@
 							type="password"
 							v-model="password"
 						)
-				md-card-actions
+				md-card-actions(v-if="!loading")
 					md-button(@click.native="doLogin") Login
+		md-snackbar(
+			md-position="bottom center"
+			ref="snackbar"
+		)
+			span {{ error }}
 </template>
 
 <script>
@@ -37,19 +46,30 @@ export default {
 	data () {
 		return {
 			username: null,
-			password: null
+			password: null,
+			loading: false,
+			error: null
 		}
 	},
 	methods: {
 		doLogin () {
 			/* Quick input validation */
 			if (this.username == '' || this.password == '') return
-
+				
+			this.loading = true
+		
+			/* Try to login with Cloud Connect object */
 			this.cc.login(this.username, this.password)
+				
+				/* Success, goto dashboard */
 				.then(() => {
-					alert("SUCCESS")
+					this.$router.push('/dashboard')
+				
+				/* Fail, show snackbar */
 				}, err => {
-					alert("FAIL")
+					this.error = err
+					this.$refs.snackbar.open()
+					this.loading = false
 				})
 		}
 	}
@@ -60,6 +80,10 @@ export default {
 .login {
 	.md-card {
 		margin: 5em 10px 0;
+		
+		.md-spinner {
+			margin: 4em auto;
+		}
 	}
 }
 </style>

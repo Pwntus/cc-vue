@@ -61,7 +61,7 @@ class CloudConnect {
 					if (!pl.errorMessage) {
 						resolve(pl)
 					} else {
-						reject(pl.errorMessage)
+						reject(JSON.parse(pl.errorMessage).message)
 					}
 				} else {
 					reject(err.toString())
