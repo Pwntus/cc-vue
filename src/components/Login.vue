@@ -19,7 +19,7 @@
 							div(class="md-title") CC Cognito
 				md-spinner(
 					md-indeterminate
-						v-if="loading"
+					v-if="loading"
 				)
 				md-card-content(v-if="!loading")
 					md-input-container
@@ -41,6 +41,8 @@
 </template>
 
 <script>
+import {CC} from '@/CloudConnect'
+
 export default {
 	name: 'Login',
 	data () {
@@ -57,9 +59,9 @@ export default {
 			if (this.username == '' || this.password == '') return
 				
 			this.loading = true
-		
-			/* Try to login with Cloud Connect object */
-			this.cc.login(this.username, this.password)
+
+			/* Try to login with Cloud Connect */
+			CC.login(this.username, this.password)
 				
 				/* Success, goto dashboard */
 				.then(() => {

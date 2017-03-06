@@ -21,6 +21,11 @@ export default {
 }
 
 body {
+	height: 100% !important;
 	background: #f8f8f8 !important;
+}
+
+#app {
+	height: 100%;
 }
 </style>
