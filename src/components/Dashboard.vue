@@ -55,7 +55,6 @@
 
 <script>
 import {CC} from '@/CloudConnect'
-//import predefined from './predefined'
 
 export default {
 	name: 'Dashboard',
@@ -146,22 +145,6 @@ export default {
 			this.$router.push('/')
 			return
 		}
-		this.$material.setCurrentTheme('default')
-
-		/* Things */
-		let findThingsPayload = {
-			action: 'FIND',
-			query: {
-				size: 3,
-				query: {
-					match_all: {}
-				}
-			}
-		}
-		CC.lambda(CC.manifest.ThingLambda, findThingsPayload)
-			.then((res) => {
-				this.findThings = JSON.stringify(res, null, 2)
-			})
 	}
 }
 </script>
