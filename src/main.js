@@ -2,7 +2,6 @@ import Vue from 'vue'
 import VueResource from 'vue-resource'
 import VueMaterial from 'vue-material'
 import router from '@/router'
-import store from '@/store'
 import App from '@/components/App'
 
 /* Import globally used styles */
@@ -20,11 +19,8 @@ Vue.material.registerTheme('default', {
 	warn: 'red'
 })
 
-/* The main Vue instance, with a router
- * and a Vuex state store.
- */
+/* The main Vue instance */
 new Vue({
 	router,
-	store,
 	render: h => h(App)
 }).$mount('#app')
