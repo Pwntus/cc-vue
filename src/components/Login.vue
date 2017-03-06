@@ -33,6 +33,11 @@
 						)
 				md-card-actions(v-if="!loading")
 					md-button(@click.native="doLogin") Login
+				a(
+					class="attribution"
+					href="http://www.freepik.com/free-vector/hexagonal-pattern_852781.htm"
+					target="_new"
+				) Graphics attribution
 		md-snackbar(
 			md-position="bottom center"
 			ref="snackbar"
@@ -85,6 +90,13 @@ export default {
 		
 		.md-spinner {
 			margin: 4em auto;
+		}
+
+		.attribution {
+			padding: 10px 15px;
+			font-size: 10px;
+			position: absolute;
+			bottom: 0;
 		}
 	}
 }
