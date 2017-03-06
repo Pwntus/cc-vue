@@ -1,5 +1,5 @@
 {
-  "name": "cc-vue",
+  "name": "cc-frontend-vue",
   "version": "1.0.0",
   "description": "Frontend Cloud Connect Cognito authentication using Vue.js 2",
   "author": "Pwntus <pontus.edvard@gmail.com>",

@@ -1,4 +1,4 @@
-# cc-vue
+# cc-frontend-vue
 
 > Frontend Cloud Connect Cognito authentication using Vue.js 2
 
@@ -19,3 +19,5 @@ npm run build --report
 ```
 
 For detailed explanation on how things work, checkout the [guide](http://vuejs-templates.github.io/webpack/) and [docs for vue-loader](http://vuejs.github.io/vue-loader).
+
+*Todo:* session based authentication with automatic refresh of token.
