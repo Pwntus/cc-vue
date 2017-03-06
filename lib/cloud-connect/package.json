@@ -1,0 +1,12 @@
+{
+  "description": "Cloud Connect library",
+  "devDependencies": {},
+  "main": "index.js",
+  "name": "cloud-connect",
+  "optionalDependencies": {},
+  "private": true,
+  "readme": "## Cloud Connect library\n\n### Building\n\nBuilding is done with [npm](https://www.npmjs.com/):\n\n    npm install\n    npm link\n\nor [yarn](https://yarnpkg.com/):\n\n    yarn\n    yarn link\n\n\n### Usage\n\nTo use the library in your own project you need to run\n\n    npm link cloud-connect\n\nin you project directory (optionally replace npm with yarn).\n\nThe below example connects to the Cloud Connect platform, subscribes to an MQTT topic, registers a message\nhandler that triggers for each received message, and then publishes to the topic it is subscribed on.\n\n```javascript\nconst CloudConnect = require(\"cloud-connect\");\nconst cc = new CloudConnect(account, env, username, password);\n\ncc.init().then(() => {\n  cc.mqtt.on(\"connect\", () => {\n    cc.mqtt.subscribe(\"someTopic\");\n  });\n\n  cc.mqtt.on(\"message\", (topic, payload) => {\n    console.log(`Received on ${topic}:`, payload.toString());\n  });\n\n  cc.mqtt.publish(\"someTopic\", \"Hello World!\");\n})\n```\n",
+  "readmeFilename": "README.md",
+  "scripts": {},
+  "version": "0.2.0"
+}
