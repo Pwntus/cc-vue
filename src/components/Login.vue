@@ -20,15 +20,15 @@
 				md-card-content
 					md-input-container
 						label Username
-						md-input(v-model="login.username")
+						md-input(v-model="username")
 					md-input-container
 						label Password
 						md-input(
 							type="password"
-							v-model="login.password"
+							v-model="password"
 						)
 				md-card-actions
-					md-button(@click.native="login") Login
+					md-button(@click.native="doLogin") Login
 </template>
 
 <script>
@@ -36,18 +36,16 @@ export default {
 	name: 'Login',
 	data () {
 		return {
-			login: {
-				username: null,
-				password: null
-			}
+			username: null,
+			password: null
 		}
 	},
 	methods: {
-		login () {
+		doLogin () {
 			/* Quick input validation */
-			if (this.login.username == '' || this.login.password == '') return
+			if (this.username == '' || this.password == '') return
 
-			console.log('d')
+			console.log(this.cc.login(this.username, this.password))
 		}
 	}
 }
@@ -56,7 +54,6 @@ export default {
 <style lang="scss" scoped>
 .login {
 	.md-card {
-		width: 100%;
 		margin: 5em 10px 0;
 	}
 }
