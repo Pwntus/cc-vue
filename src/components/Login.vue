@@ -45,7 +45,12 @@ export default {
 			/* Quick input validation */
 			if (this.username == '' || this.password == '') return
 
-			console.log(this.cc.login(this.username, this.password))
+			this.cc.login(this.username, this.password)
+				.then(() => {
+					alert("SUCCESS")
+				}, err => {
+					alert("FAIL")
+				})
 		}
 	}
 }
