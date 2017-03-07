@@ -25,14 +25,31 @@ For detailed explanation on how things work, checkout the [guide](http://vuejs-t
 This is a frontend example written in [Vue.js 2](https://vuejs.org/) that demonstrate steps needed to create a Cognito Identity. It has two components; **Login** and **Dashboard**.
 
 * Login
+
 	A login form where the user can provide Cloud Connect credentials.
 
 * Dashboard
+
     Allow the authenticated user to call some predefined Cloud Connect API functions (lambda functions) with editable example payload.
 
 ## The Cloud Connect class
 
 The class can be found in src/CloudConnect.js and is a simplified class for performing Cloud Connect API calls. It should be well documented and easy to follow on every step. Some prior knowledge with JavaScript ES6 is required.
+
+### Authentication
+
+A user can obtain a Cognito Identity by calling the function `CloudConnect.login()`. The login function returns a Promise which can be used to take appropriate action depending on the outcome.
+
+**Example**
+```javascript
+let CC = new CloudConnect
+CC.login('JohnDoe', '********')
+.then(() => {
+    // Successful login
+}, error => {
+    // Fail with message 'error'
+})
+```
 
 ### Performing lambda API calls
 
@@ -46,7 +63,30 @@ Where:
 `function_name` - The lambda function name (e.g. 'ThingLambda', obtained in the Cloud Connect technical specification).
 
 `payload` - a JSON string containing the API payload (e.g. an Elasticsearch query).
-	
+
+**Example**
+
+```javascript
+// Execute an Elasticsearch query using the ObservationLambda API
+CC.lambda('ObservationLambda', `
+{
+  "action": "FIND",
+  "query": {
+    "size": 1,
+    "query": {
+        ...
+    },
+    "aggs": {
+        ...
+    }
+  }
+}
+`).then(result => {
+    // Successful, return data in 'result'
+}, error => {
+    // Fail with message 'error'
+})
+```
 
 
 
