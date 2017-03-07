@@ -1,57 +1,39 @@
-import Vue from 'vue'
 import AWS from 'aws-sdk'
 import CloudConnectSession from './CloudConnectSession'
 
 class CloudConnect {
 	
 	/* Init class with host name configured for
-	 * Telenor.
+	 * Telenor Connexion/Cloud Connect/Start IoT.
 	 */
 	constructor () {
-		this.AWS = AWS
 		this.host = 'startiot.cc.telenorconnexion.com'
+		this.AWS = AWS
 		this.manifest = null
 		this.session = null
 		this.debug = true
+
+		/* Load AWS manifest at init */
+		this.loadManifest()
+			.catch(error => console.log('Could not load manifest file', error))
 	}
 
 	/* Customizable debug method */
-	debugMessage(method, message) {
-		if (this.debug)
-			console.log('CloudConnect.' + method + ': ' + message)
+	log(message, ...dump) {
+		if (this.debug) console.log('[debug]:', message, ...dump)
 	}
 	
-	/* Return the manifest file from full URL */
-	getManifest () {
-		const manifest_url = `https://1u31fuekv5.execute-api.eu-west-1.amazonaws.com/prod/manifest/?hostname=${this.host}`
-		
-		return new Promise((resolve, reject) => {
-			Vue.http.get(manifest_url)
-				.then(response => {
-					/* Parse manifest from the response
-					 * and resolve.
-					 */
-					resolve(response.body)
-
-				/* Reject if failed */
-				}).catch(error => reject(error))
-		})
-	}
-	
+	/* Fetch manifest from correct URL */
 	loadManifest () {
-		return new Promise((resolve, reject) => {
-			this.getManifest()
-				.then(manifest => {
-					/* Store manifest file and set AWS instance
-					 * region based on manifest.
-					 */
-					this.manifest = manifest
-					this.AWS.config.region = manifest.Region
-					
-					resolve()
-					
-				}).catch(error => reject(error))
-		})
+		const manifest_url = `https://1u31fuekv5.execute-api.eu-west-1.amazonaws.com/prod/manifest/?hostname=${this.host}`
+
+		return fetch(manifest_url)
+			.then(response => response.json())
+			.then(manifest => {
+				this.log('loaded manifest', manifest)
+				this.manifest = manifest
+				this.AWS.config.region = manifest.Region
+			})
 	}
 	
 	/* Invoke will execute a AWS lambda function.
@@ -62,23 +44,26 @@ class CloudConnect {
 	 * if we were to refresh the session credentials.
 	 */
 	invoke (function_name, payload) {
-		
-		console.log('D')
+
 		/* Store the lambda call instance for potetially
-		 * later usage.
+		 * later usage. A context variable to the current
+		 * instance is provided to bypass cross-object
+		 * hokus-pokus (when calling from the Cloud Connect
+		 * session instance).
 		 */
-		const invoke_instance = () => {
-			return this.lambda(function_name, payload)
+		const invoke_instance = (ctx = this) => {
+			return this.lambda(function_name, payload, this)
 		}
 		
 		/* Run it, but catch errors */
 		return invoke_instance()
 			.catch(error => {
 				
-				/* if we in fact got an auth error we need to
+				/* If we in fact got an auth error we need to
 				 * refresh the session credentials.
 				 */
 				if (this.isAuthError(error)) {
+					console.log('AAAAAA', error)
 					return this.session.refreshCredentials()
 						.then(invoke_instance)
 					
@@ -92,16 +77,10 @@ class CloudConnect {
 	/* Execute a Cloud Connect Lambda function for
 	 * the given 'function_name' and 'payload'.
 	 */
-	lambda (function_name, payload) {
+	lambda (function_name, payload, ctx = this) {
 		return new Promise((resolve, reject) => {
 			
-			this.debugMessage('lambda', function_name)
-			
-			let parseError = function (error) {
-				if (error && error.errorMessage) { return JSON.parse(error.errorMessage) }
-				else if (typeof(error) === 'string') { return JSON.parse(error) }
-				else { return error }
-			}
+			this.log('lambda.' + function_name, payload)
 
 			/* Lambda parameters */
 			let params = {
@@ -122,7 +101,7 @@ class CloudConnect {
 				try {
 					/* Got error */
 					if (err) {
-						reject(parseError(err))
+						reject(ctx.parseError(err))
 						
 					/* Empty response */
 					} else if (!res || !res.Payload) {
@@ -134,7 +113,7 @@ class CloudConnect {
 						
 						/* Got an error message in response */
 						if (res.FunctionError || payload.errorMessage) {
-							reject(parseError(payload))
+							reject(ctx.parseError(payload))
 							
 						/* OK */
 						} else {
@@ -149,12 +128,12 @@ class CloudConnect {
 			})
 		})
 	}
-	
-	/* Function for parsing the response from a lambda
-	 * function call.
+
+	/* Parse different formats returned by a
+	 * lambda call.
 	 */
 	parseError (error) {
-		if (error && error.errorMessage) { return JSON.parse(error.errorMessage) }
+		if (error && error.errorMessage) { return JSON.parse(error.errorMessage).message }
 		else if (typeof(error) === 'string') { return JSON.parse(error) }
 		else { return error }
 	}
@@ -169,31 +148,12 @@ class CloudConnect {
 				(typeof error.message === 'string' && error.message.match(authErrors))
 	}
 	
-	/* Perform events required to authenticate with
-	 * Cognito Identity against Cloud Connect and AWS.
-	 * Return a Promise for event chaining.
+	/* Create a Cloud Connect session and try
+	 * login with provided username / password.
 	 */
 	login (username, password) {
-		return new Promise((resolve, reject) => {
-			
-			/* Load the manifest */
-			this.loadManifest()
-				.then(() => {
-					console.log('A')
-					
-					/* Create a new Cloud Connect session with manifest
-					 * and current object instance as context (the context
-					 * is used by the CloudConnectSession to invoke lambda
-					 * calls).
-					 */
-					this.session = new CloudConnectSession(this.manifest, this.invoke.bind(this))
-					return this.session.login(username, password)
-						
-				/* Failed to load manifest */
-				})
-				.then(() => resolve())
-				.catch(error => reject(error))
-		})
+		this.session = new CloudConnectSession(this.manifest, this.invoke.bind(this))
+		return this.session.login(username, password)
 	}
 }
 

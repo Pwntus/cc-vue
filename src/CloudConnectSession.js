@@ -1,54 +1,52 @@
-import Vue from 'vue'
 import AWS from 'aws-sdk'
 
 class CloudConnectSession {
 	
-	/* Init session with manifest and context of
-	 * the CloudConnect object. The context is used
-	 * to invoke lambda calls (which is defined in
-	 * the CloudConnect class).
+	/* Init session with manifest and a reference
+	 * to the CloudCOnnect invoke function.
 	 */
 	constructor (manifest, invoke) {
 		this.manifest = manifest
 		this.invoke = invoke
 		this.credentials = null
-		console.log('B')
 	}
 	
-	/*
-	 */
 	login (username, password) {
-		
-		return new Promise((resolve, reject) => {
-			
-			this.getCredentials(null)
-				.then(credentials => {
-					
-					this.credentials = credentials
-					
-					const loginPayload = {
-						action: 'LOGIN',
-						attributes: {
-							userName: username,
-							password: password
-						}
+
+		/* Get AWS Cognito limited-privilege credentials
+		 * since we don't have a Cloud Connect authentication
+		 * token yet.
+		 */
+		return this.getCredentials()
+			.then(credentials => {
+				this.credentials = credentials
+
+				/* Invoke a AuthLambda call to obtain an
+				 * authentication token from Cloud Connect.
+				 */
+				const loginPayload = {
+					action: 'LOGIN',
+					attributes: {
+						userName: username,
+						password: password
 					}
-					return this.invoke(this.manifest.AuthLambda, loginPayload)
-				})
-				.then(account => {
-					this.account = account
-					return this.getCredentials(account.credentials.token)
-				})
-				.then(credentials => {
-					this.credentials = credentials
-					
-					resolve()
-				})
-				.catch(error => reject(error))
-		})
+				}
+				return this.invoke(this.manifest.AuthLambda, loginPayload)
+			})
+			.then(account => {
+				this.account = account
+
+				/* Get AWS Cognito raised privilege credential
+				 * using the obtained Cloud Connect auth token.
+				 */
+				return this.getCredentials(account.credentials.token)
+			})
+			.then(credentials => {
+				this.credentials = credentials
+			})
 	}
 	
-	getCredentials (token) {
+	getCredentials (token = null) {
 		let credentials = new AWS.CognitoIdentityCredentials({
 			IdentityPoolId: this.manifest.IdentityPool,
 			Logins: {
@@ -56,6 +54,8 @@ class CloudConnectSession {
 			}
 		})
 		
+		if (!token) credentials.clearCachedId()
+
 		return new Promise((resolve, reject) => {
 			credentials.get(error => {
 				error ? reject(error) : resolve(credentials)

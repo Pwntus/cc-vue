@@ -67,7 +67,6 @@ export default {
 
 			/* Try to login with Cloud Connect */
 			CC.login(this.username, this.password)
-				
 				/* Success, goto dashboard */
 				.then(() => {
 					this.$router.push('/dashboard')
