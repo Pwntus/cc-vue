@@ -22,14 +22,12 @@ For detailed explanation on how things work, checkout the [guide](http://vuejs-t
 
 # What is this?
 
-This is a frontend example written in [Vue.js 2](https://vuejs.org/) that demonstrate steps needed to create a Cognito Identity. It has two components; **Login** and **Dashboard**.
+This is a frontend example written in [Vue.js 2](https://vuejs.org/) to demonstrate steps needed to create a Cognito Identity. It has two components; **Login** and **Dashboard**.
 
 * Login
-
 	A login form where the user can provide Cloud Connect credentials.
 
 * Dashboard
-
     Allow the authenticated user to call some predefined Cloud Connect API functions (lambda functions) with editable example payload.
 
 ## The Cloud Connect class
@@ -68,20 +66,20 @@ Where:
 
 ```javascript
 // Execute an Elasticsearch query using the ObservationLambda API
-CC.lambda('ObservationLambda', `
+
+const = function_name = 'ObservationLambda'
+const query = `
 {
   "action": "FIND",
   "query": {
     "size": 1,
-    "query": {
-        ...
-    },
-    "aggs": {
-        ...
-    }
+    "query": { ... },
+    "aggs": { ... }
   }
-}
-`).then(result => {
+}`
+
+CC.lambda(function_name, query)
+.then(result => {
     // Successful, return data in 'result'
 }, error => {
     // Fail with message 'error'
