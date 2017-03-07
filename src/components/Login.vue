@@ -73,8 +73,9 @@ export default {
 					this.$router.push('/dashboard')
 				
 				/* Fail, show snackbar */
-				}, err => {
-					this.error = err
+				})
+				.catch(error => {
+					this.error = error
 					this.$refs.snackbar.open()
 					this.loading = false
 				})
