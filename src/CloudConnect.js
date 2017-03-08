@@ -63,7 +63,6 @@ class CloudConnect {
 				 * refresh the session credentials.
 				 */
 				if (this.isAuthError(error)) {
-					console.log('AAAAAA', error)
 					return this.session.refreshCredentials()
 						.then(invoke_instance)
 					
