@@ -89,7 +89,7 @@ CC.invoke('ObservationLambda', query)
 
 ## AWS Cognito authentication flow
 
-When `CloudConnect.login()` is called a new `CloudConnectSession` instance is created. The session class is responsible for handling the flow between AWS and Cloud Connect. There are basically x steps during Cognito identification:
+When `CloudConnect.login()` is called, a new `CloudConnectSession` instance is created. The session class is responsible for handling the flow between AWS and Cloud Connect. There are basically three steps during Cognito identification:
 
   1. Credentials are retrieved from STS Web Identity Federation by the AWS Cognito Identity service `AWS.CognitoIdentityCredentials`. The `IdentityPoolId` is obtained from the Cloud Connect manifest file.
 
@@ -124,4 +124,4 @@ When `CloudConnect.login()` is called a new `CloudConnectSession` instance is cr
   // ...
   ```
 
-The privileged Cognito credentials are saved and provided each time a AWS lambda function is called.
+The privileged Cognito credentials are saved and provided each time an AWS lambda function is called.
