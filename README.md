@@ -22,7 +22,7 @@ For detailed explanation on how things work, checkout the [guide](http://vuejs-t
 
 # What is this?
 
-This is a frontend example written in [Vue.js 2](https://vuejs.org/) which demonstrates how to obtain a Cognito Identity and execute lambda API calls. It has two components; **Login** and **Dashboard**.
+This is a frontend example written in [Vue.js 2](https://vuejs.org/) which demonstrates how to obtain a Cognito Identity and execute lambda API calls. It has two main components; **Login** and **Dashboard**.
 
 * Login
 
@@ -34,7 +34,7 @@ This is a frontend example written in [Vue.js 2](https://vuejs.org/) which demon
 
 ## The Cloud Connect class
 
-The class can be found in [src/CloudConnect.js](src/CloudConnect.js) and is a simplified class for performing Cloud Connect API calls. It should be well documented and easy to follow on every step. Some prior knowledge with JavaScript ES6 is required.
+The class can be found in [src/CloudConnect.js](src/CloudConnect.js) and is a simplified class for performing AWS Cognito identification flows. It should be well documented and easy to follow on every step. Some prior knowledge with JavaScript ES6 is required.
 
 ### Authentication
 
@@ -46,17 +46,17 @@ let CC = new CloudConnect
 CC.login('JohnDoe', '********')
 .then(() => {
     // Successful login
-}, error => {
+}).catch(error => {
     // Fail with message 'error'
 })
 ```
 
-### Performing lambda API calls
+### Performing Cloud Connect lambda API calls
 
-When a user is authenticated and has a valid Cognito Identity, the `CloudConnect.lambda()` function can be used to directly invoke Cloud Connect API calls.
+When a user is authenticated and has a valid Cognito Identity, the `CloudConnect.invoke()` function can be used to directly invoke Cloud Connect API calls.
 
 ```javascript
-lambda (function_name, payload)
+invoke (function_name, payload)
 ```
 Where:
 
@@ -82,11 +82,20 @@ const query = `
 CC.lambda('ObservationLambda', query)
 .then(result => {
     // Successful, return data in 'result'
-}, error => {
+}).catch(error => {
     // Fail with message 'error'
 })
 ```
 
+### AWS Cognito authentication flow
 
+When `CloudConnect.login()` is called a new `CloudConnectSession` instance is created. The session class is responsible for handling the flow between AWS and Cloud Connect. There are basically x steps that are done during Cognito identification:
 
-**Todo:** session based authentication with automatic refresh of token.
+  1. Credentials are retrieved from STS Web Identity Federation by the AWS Cognito Identity service `AWS.CognitoIdentityCredentials`. The `IdentityPoolId` used is obtained from the Cloud Connect manifest file.
+
+  ```javascript
+  let credentials = new AWS.CognitoIdentityCredentials({
+    IdentityPoolId: this.manifest.IdentityPool
+  })
+  credentials.get()
+  ```

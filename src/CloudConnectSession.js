@@ -31,7 +31,7 @@ class CloudConnectSession {
 						password: password
 					}
 				}
-				return this.invoke(this.manifest.AuthLambda, loginPayload)
+				return this.invoke('AuthLambda', loginPayload)
 			})
 			.then(account => {
 				this.account = account
@@ -78,7 +78,7 @@ class CloudConnectSession {
 				refreshToken: this.account.credentials.refreshToken
 			}
 		}
-		return this.invoke(this.manifest.AuthLambda, refreshPayload)
+		return this.invoke('AuthLambda', refreshPayload)
 			.then(account => {
 				this.account = account
 				return this.getCredentials(this.account.credentials.token)

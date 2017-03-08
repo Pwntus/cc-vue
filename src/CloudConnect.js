@@ -84,7 +84,7 @@ class CloudConnect {
 
 			/* Lambda parameters */
 			let params = {
-				FunctionName: function_name,
+				FunctionName: ctx.manifest[function_name],
 				Payload: JSON.stringify(payload)
 			}
 			

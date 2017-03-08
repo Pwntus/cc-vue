@@ -89,7 +89,7 @@
 <script>
 import {CC} from '@/CloudConnect'
 import Histogram from './Histogram'
-import predefined from './predefined'
+import predefined from './Predefined'
 
 export default {
 	name: 'Dashboard',
@@ -106,7 +106,7 @@ export default {
 			this.ui.show_observation = false
 			this.result = null;
 
-			CC.invoke(CC.manifest[lambda], payload)
+			CC.invoke(lambda, payload)
 				.then(result => {
 					this.ui.loading = false;
 					this.result = JSON.stringify(result, null, 2)
@@ -126,7 +126,7 @@ export default {
 			this.ui.show_observation = true
 			this.result = null;
 
-			CC.invoke(CC.manifest[lambda], payload)
+			CC.invoke(lambda, payload)
 				.then(result => {
 					this.ui.loading_observation = false;
 					this.result = JSON.stringify(result, null, 2)
