@@ -76,7 +76,9 @@
 							v-if="!ui.show_observation"
 						)
 						div(v-if="ui.show_observation && !ui.loading_observation")
-							
+							histogram(
+								:chart-data="chartData"
+							)
 		md-snackbar(
 				md-position="bottom center"
 				ref="snackbar"
@@ -86,10 +88,12 @@
 
 <script>
 import {CC} from '@/CloudConnect'
+import Histogram from './Histogram'
 import predefined from './predefined'
 
 export default {
 	name: 'Dashboard',
+	components: { Histogram },
 	methods: {
 
 		/* Run example API */
@@ -150,10 +154,20 @@ export default {
 		parseObservation (result) {
 			if (result._shards.successful < 1) return
 
+			let chart_labels = []
+			let chart_dataset = []
 			const buckets = result.aggregations.hist.buckets
 			buckets.forEach(bucket => {
-				//console.log(bucket)
+				chart_labels.push(bucket.key_as_string)
+				chart_dataset.push(bucket.lsnr.value)
 			})
+
+			this.chartData.labels = chart_labels
+			this.chartData.datasets = [{
+				label: 'LSNR',
+				data: chart_dataset,
+				backgroundColor: '#2196f3'
+			}]
 		}
 	},
 	data () {
@@ -163,8 +177,9 @@ export default {
 				loading_observation: false,
 				show_observation: false
 			},
-			elastic: {
-				
+			chartData: {
+				labels: null,
+				datasets: null
 			},
 			error: null,
 			result: null,
