@@ -79,7 +79,7 @@ const query = `
   }
 }`
 
-CC.lambda('ObservationLambda', query)
+CC.invoke('ObservationLambda', query)
 .then(result => {
     // Successful, return data in 'result'
 }).catch(error => {
@@ -87,15 +87,41 @@ CC.lambda('ObservationLambda', query)
 })
 ```
 
-### AWS Cognito authentication flow
+## AWS Cognito authentication flow
 
-When `CloudConnect.login()` is called a new `CloudConnectSession` instance is created. The session class is responsible for handling the flow between AWS and Cloud Connect. There are basically x steps that are done during Cognito identification:
+When `CloudConnect.login()` is called a new `CloudConnectSession` instance is created. The session class is responsible for handling the flow between AWS and Cloud Connect. There are basically x steps during Cognito identification:
 
-  1. Credentials are retrieved from STS Web Identity Federation by the AWS Cognito Identity service `AWS.CognitoIdentityCredentials`. The `IdentityPoolId` used is obtained from the Cloud Connect manifest file.
+  1. Credentials are retrieved from STS Web Identity Federation by the AWS Cognito Identity service `AWS.CognitoIdentityCredentials`. The `IdentityPoolId` is obtained from the Cloud Connect manifest file.
 
   ```javascript
   let credentials = new AWS.CognitoIdentityCredentials({
     IdentityPoolId: this.manifest.IdentityPool
   })
   credentials.get()
+  // ...
   ```
+
+  2. We now have some very basic credentials needed to invoke the `AuthLambda` function with the Cloud Connect username and password. The `AuthLambda` function will return the account data and a token.
+
+  ```javascript
+  CC.invoke('AuthLambda', loginPayload)
+  .then(account => {
+    const token = account.credentials.token
+  })
+  // ...
+  ```
+
+  3. Call the AWS Cognito Identity service again, now with the obtained Cloud Connect token, to retrieve privileged Cognito credentials.
+
+  ```javascript
+  let credentials = new AWS.CognitoIdentityCredentials({
+    IdentityPoolId: this.manifest.IdentityPool,
+    Logins: {
+      [`cognito-idp.${this.manifest.Region}.amazonaws.com/${this.manifest.UserPool}`]: token
+    }
+  })
+  credentials.get()
+  // ...
+  ```
+
+The privileged Cognito credentials are saved and provided each time a AWS lambda function is called.
