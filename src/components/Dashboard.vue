@@ -35,11 +35,11 @@
 						md-button(
 							class="md-accent md-raised"
 							@click.native="run"
-							v-if="!loading"
+							v-if="!ui.loading"
 						) Run
 						md-spinner(
 							md-indeterminate
-							v-if="loading"
+							v-if="ui.loading"
 						)
 					md-card-header
 						div(class="md-title") ObservationLambda API
@@ -52,15 +52,15 @@
 							)
 						md-input-container
 							label Query
-							md-textarea(v-model="elastic_query")
+							md-textarea(v-model="predefined.ObservationLambda_GET.payload")
 						md-button(
 							class="md-accent md-raised"
-							@click.native="runQuery"
-							v-if="!loading_query"
+							@click.native="runObservation"
+							v-if="!ui.loading_observation"
 						) Run
 						md-spinner(
 							md-indeterminate
-							v-if="loading_query"
+							v-if="ui.loading_observation"
 						)
 		md-layout(
 			md-column
@@ -73,168 +73,104 @@
 					md-card-content
 						textarea(
 							:value="result"
-							v-if="!show_query"
+							v-if="!ui.show_observation"
 						)
-						textarea(
-							:value="result"
-							v-if="show_query"
-						)
+						div(v-if="ui.show_observation && !ui.loading_observation")
+							
+		md-snackbar(
+				md-position="bottom center"
+				ref="snackbar"
+			)
+				span {{ error }}
 </template>
 
 <script>
 import {CC} from '@/CloudConnect'
+import predefined from './predefined'
 
 export default {
 	name: 'Dashboard',
-	computed: {
-		predefinedPayload () {
-			return JSON.parse(this.predefined[this.action].payload)
-		}
-	},
 	methods: {
+
+		/* Run example API */
 		run () {
 			const lambda = this.predefined[this.action].lambda
-			const payload = this.predefinedPayload
+			const payload = this.tryParse(this.predefined[this.action].payload)
+			if (!payload) return
 
-			this.loading = true;
-			this.show_query = false
+			this.ui.loading = true;
+			this.ui.show_observation = false
 			this.result = null;
 
 			CC.invoke(CC.manifest[lambda], payload)
 				.then(result => {
-					this.loading = false;
+					this.ui.loading = false;
 					this.result = JSON.stringify(result, null, 2)
-				}, err => {
-					this.loading = false;
-					this.result = err
+				}, error => {
+					this.ui.loading = false;
+					this.result = error
 				})
 		},
 		
 		/* Run Elasticsearch query */
-		runQuery () {
-			this.loading_query = true;
-			this.result = null;
-			this.show_query = true
+		runObservation () {
+			const lambda = 'ObservationLambda'
+			const payload = this.tryParse(this.predefined.ObservationLambda_GET.payload)
+			if (!payload) return
 
-			CC.invoke('ObservationLambda', JSON.parse(this.elastic_query))
+			this.ui.loading_observation = true;
+			this.ui.show_observation = true
+			this.result = null;
+
+			CC.invoke(CC.manifest[lambda], payload)
 				.then(result => {
-					this.loading_query = false;
+					this.ui.loading_observation = false;
 					this.result = JSON.stringify(result, null, 2)
-				}, err => {
-					this.loading_query = false;
-					this.result = err
+					try {
+						this.parseObservation(result)
+					} catch (e) {
+						this.error = e.message
+						this.$refs.snackbar.open()
+					}
+				}, error => {
+					this.ui.loading_observation = false;
+					this.result = error
 				})
+		},
+
+		tryParse (source) {
+			try {
+				return JSON.parse(source)
+			} catch (e) {
+				this.error = e.message
+				this.$refs.snackbar.open()
+			}
+		},
+
+		parseObservation (result) {
+			if (result._shards.successful < 1) return
+
+			const buckets = result.aggregations.hist.buckets
+			buckets.forEach(bucket => {
+				//console.log(bucket)
+			})
 		}
 	},
 	data () {
 		return {
-			loading: false,
-			loading_query: false,
-			show_query: false,
+			ui: {
+				loading: false,
+				loading_observation: false,
+				show_observation: false
+			},
+			elastic: {
+				
+			},
+			error: null,
 			result: null,
 			action: 'ThingLambda_FIND',
-			
-			predefined: {
-				ThingLambda_FIND: {
-					lambda: 'ThingLambda',
-					payload: JSON.stringify({
-						action: 'FIND',
-						query: {
-							size: 3,
-							query: {
-								match_all: {}
-							}
-						}
-					}, 0, 2)
-				},
-				ThingLambda_GET: {
-					lambda: 'ThingLambda',
-					payload: JSON.stringify({
-						action: 'GET',
-						attributes: {
-							thingName: '00000275',
-							shadow: null,
-							label: null
-						}
-					}, 0, 2)
-				},
-				ThingTypeLambda_GET: {
-					lambda: 'ThingTypeLambda',
-					payload: JSON.stringify({
-						action: 'GET',
-						attributes: {
-							id: '83'
-						}
-					}, 0, 2)
-				},
-				ThingTypeLambda_LIST: {
-					lambda: 'ThingTypeLambda',
-					payload: JSON.stringify({
-						action: 'LIST'
-					}, 0, 2)
-				},
-				UserLambda_GET: {
-					lambda: 'UserLambda',
-					payload: JSON.stringify({
-						action: 'GET',
-						attributes: {
-							userName: 'Pwntus',
-							firstName: null,
-							roleName: null
-						}
-					}, 0, 2)
-				}
-			},
-			
-			elastic_query: JSON.stringify({
-				"action": "FIND",
-				"query": {
-					"size": 1,
-					"trackScores": false,
-					"query": {
-						"bool": {
-							"must": [
-								{
-								"range": {
-									"timestamp": {
-										"gte": 1486966800000,
-										"lte": 1486969211082
-									}
-									}
-								},
-								{
-									"terms": {
-										"thingName": [
-											"00000301"
-										]
-									}
-								}
-							]
-						}
-					},
-					"aggs": {
-						"hist": {
-							"date_histogram": {
-								"field": "timestamp",
-								"interval": "1m",
-								"time_zone": "+01:00",
-								"min_doc_count": 1,
-								"extended_bounds": {
-									"min": 1486966800000,
-									"max": 1486969211082
-								}
-							},
-							"aggs": {
-								"sine": {
-									"avg": {
-										"field": "state.sine"
-									}
-								}
-							}
-						}
-					}
-				}
-			}, 0, 2)
+
+			predefined,
 		}
 	},
 	mounted () {

@@ -11,7 +11,7 @@ class CloudConnect {
 		this.AWS = AWS
 		this.manifest = null
 		this.session = null
-		this.debug = true
+		this.debug = false
 
 		/* Load AWS manifest at init */
 		this.loadManifest()
@@ -92,7 +92,7 @@ class CloudConnect {
 			 * Credentials should already be obtained by
 			 * the session object.
 			 */
-			let lambda = new AWS.Lambda({ credentials: this.session.credentials })
+			let lambda = new ctx.AWS.Lambda({ credentials: this.session.credentials })
 			lambda.invoke(params, function (err, res) {
 
 				/* Parse response and find out if we got a
