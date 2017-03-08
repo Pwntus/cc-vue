@@ -54,6 +54,7 @@ class CloudConnectSession {
 			}
 		})
 		
+		/* Clear previously cached ID if token is absent */
 		if (!token) credentials.clearCachedId()
 
 		return new Promise((resolve, reject) => {
