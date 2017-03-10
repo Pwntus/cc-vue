@@ -62,22 +62,21 @@ Where:
 
 `function_name` - The lambda function name (e.g. 'ThingLambda', obtained in the Cloud Connect technical specification).
 
-`payload` - a JSON string containing the API payload (e.g. an Elasticsearch query).
+`payload` - a JavaScript Object containing the API payload (e.g. an Elasticsearch query).
 
 **Example**
 
 ```javascript
 // Execute an Elasticsearch query using the ObservationLambda API
 
-const query = `
-{
-  "action": "FIND",
-  "query": {
-    "size": 1,
-    "query": { ... },
-    "aggs": { ... }
+const query = {
+  action: 'FIND',
+  query: {
+    size: 1,
+    query: { /*...*/ },
+    aggs: { /*...*/ }
   }
-}`
+}
 
 CC.invoke('ObservationLambda', query)
 .then(result => {
@@ -89,15 +88,15 @@ CC.invoke('ObservationLambda', query)
 
 ## AWS Cognito authentication flow
 
-When `CloudConnect.login()` is called, a new `CloudConnectSession` instance is created. The session class is responsible for handling the flow between AWS and Cloud Connect. There are basically three steps during Cognito identification:
+There are basically three steps during Cognito identification:
 
   1. Credentials are retrieved from STS Web Identity Federation by the AWS Cognito Identity service `AWS.CognitoIdentityCredentials`. The `IdentityPoolId` is obtained from the Cloud Connect manifest file.
 
   ```javascript
-  let credentials = new AWS.CognitoIdentityCredentials({
+  AWS.config.credentials = new AWS.CognitoIdentityCredentials({
     IdentityPoolId: this.manifest.IdentityPool
   })
-  credentials.get()
+  AWS.config.credentials.get()
   // ...
   ```
 
@@ -106,7 +105,7 @@ When `CloudConnect.login()` is called, a new `CloudConnectSession` instance is c
   ```javascript
   CC.invoke('AuthLambda', loginPayload)
   .then(account => {
-    const token = account.credentials.token
+    cloudConnectToken = account.credentials.token
   })
   // ...
   ```
@@ -114,13 +113,13 @@ When `CloudConnect.login()` is called, a new `CloudConnectSession` instance is c
   3. Call the AWS Cognito Identity service again, now with the obtained Cloud Connect token, to retrieve privileged Cognito credentials.
 
   ```javascript
-  let credentials = new AWS.CognitoIdentityCredentials({
+  AWS.config.credentials = new AWS.CognitoIdentityCredentials({
     IdentityPoolId: this.manifest.IdentityPool,
     Logins: {
-      [`cognito-idp.${this.manifest.Region}.amazonaws.com/${this.manifest.UserPool}`]: token
+      [`cognito-idp.${this.manifest.Region}.amazonaws.com/${this.manifest.UserPool}`]: cloudConnectToken
     }
   })
-  credentials.get()
+  AWS.config.credentials.get()
   // ...
   ```
 
