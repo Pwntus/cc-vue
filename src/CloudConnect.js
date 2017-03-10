@@ -1,5 +1,4 @@
 import AWS from 'aws-sdk'
-import CloudConnectSession from './CloudConnectSession'
 
 class CloudConnect {
 	
@@ -10,17 +9,24 @@ class CloudConnect {
 		this.host = 'startiot.cc.telenorconnexion.com'
 		this.AWS = AWS
 		this.manifest = null
-		this.session = null
-		this.debug = false
 
 		/* Load AWS manifest at init */
 		this.loadManifest()
 			.catch(error => console.log('Could not load manifest file', error))
 	}
 
-	/* Customizable debug method */
-	log(message, ...dump) {
-		if (this.debug) console.log('[debug]:', message, ...dump)
+	/* Parse different formats returned by a lambda call */
+	parseError (error) {
+		if (error && error.errorMessage) { return JSON.parse(error.errorMessage).message }
+		else if (typeof(error) === 'string') { return JSON.parse(error) }
+		else { return error }
+	}
+
+	/* Determine if an error returned by a lambda call is an auth error */
+	isAuthError (error) {
+		const authErrors = /No data|Token is expired|Invalid login token|Missing credentials in config|is not authorized to perform|Not Found/
+		return  (typeof error === 'string' && error.match(authErrors)) ||
+				(typeof error.message === 'string' && error.message.match(authErrors))
 	}
 	
 	/* Fetch manifest from correct URL */
@@ -30,96 +36,61 @@ class CloudConnect {
 		return fetch(manifest_url)
 			.then(response => response.json())
 			.then(manifest => {
-				this.log('loaded manifest', manifest)
 				this.manifest = manifest
 				this.AWS.config.region = manifest.Region
 			})
 	}
 	
-	/* Invoke will execute a AWS lambda function.
-	 * What's special here is that it first stores the actual
-	 * lambda call in an instance variable 'invoke_instace',
-	 * where it will check the response status of the call.
-	 * By storing the instance, we can later invoke it again
-	 * if we were to refresh the session credentials.
-	 */
+	/* Invoke will execute a AWS lambda function */
 	invoke (function_name, payload) {
 
-		/* Store the lambda call instance for potetially
-		 * later usage. A context variable to the current
-		 * instance is provided to bypass cross-object
-		 * hokus-pokus (when calling from the Cloud Connect
-		 * session instance).
+		/* Create an instance of the lambda call for
+		 * potentially later usage.
 		 */
-		const invoke_instance = (ctx = this) => {
-			return this.lambda(function_name, payload, this)
+		const invoke_instance = () => {
+			return this.lambda(function_name, payload)
 		}
 		
 		/* Run it, but catch errors */
 		return invoke_instance()
 			.catch(error => {
-				
-				/* If we in fact got an auth error we need to
-				 * refresh the session credentials.
-				 */
+
+				/* Refresh token if auth error */
 				if (this.isAuthError(error)) {
-					return this.session.refreshCredentials()
+					return this.refreshCredentials()
 						.then(invoke_instance)
-					
-				/* Something else, bad, happened */
-				} else {
-					throw error
 				}
+				throw error
 			})
 	}
 	
-	/* Execute a Cloud Connect Lambda function for
-	 * the given 'function_name' and 'payload'.
-	 */
-	lambda (function_name, payload, ctx = this) {
+	/* Execute a Cloud Connect Lambda function */
+	lambda (function_name, payload) {
 		return new Promise((resolve, reject) => {
-			
-			this.log('lambda.' + function_name, payload)
 
 			/* Lambda parameters */
 			let params = {
-				FunctionName: ctx.manifest[function_name],
+				FunctionName: this.manifest[function_name],
 				Payload: JSON.stringify(payload)
 			}
 			
-			/* Invoke the lambda function.
-			 * Credentials should already be obtained by
-			 * the session object.
-			 */
-			let lambda = new ctx.AWS.Lambda({ credentials: this.session.credentials })
-			lambda.invoke(params, function (err, res) {
+			/* Invoke the lambda function */
+			let lambda = new this.AWS.Lambda()
+			lambda.invoke(params, (err, res) => {
 
-				/* Parse response and find out if we got a
-				 * genuine error, or an expired token.
-				 */
+				/* Parse response */
 				try {
 					/* Got error */
-					if (err) {
-						reject(ctx.parseError(err))
-						
+					if (err) reject(this.parseError(err))
 					/* Empty response */
-					} else if (!res || !res.Payload) {
-						reject('No data')
-						
+					if (!res || !res.Payload) reject('No data')
 					/* No error, got a response */
-					} else {
-						const payload = JSON.parse(res.Payload)
-						
-						/* Got an error message in response */
-						if (res.FunctionError || payload.errorMessage) {
-							reject(ctx.parseError(payload))
-							
-						/* OK */
-						} else {
-							resolve(payload)
-						}
-					}
-					
+					const payload = JSON.parse(res.Payload)
+					/* Got an error message in response */
+					if (res.FunctionError || payload.errorMessage)
+						reject(this.parseError(payload))
+					/* OK */
+					resolve(payload)
 				/* Unexpected error */
 				} catch (err) {
 					reject(err)
@@ -128,31 +99,67 @@ class CloudConnect {
 		})
 	}
 
-	/* Parse different formats returned by a
-	 * lambda call.
-	 */
-	parseError (error) {
-		if (error && error.errorMessage) { return JSON.parse(error.errorMessage).message }
-		else if (typeof(error) === 'string') { return JSON.parse(error) }
-		else { return error }
+	/* Get AWS Cognito Credentials */
+	getCredentials (token = null) {
+		this.AWS.config.credentials = new AWS.CognitoIdentityCredentials({
+			IdentityPoolId: this.manifest.IdentityPool,
+			Logins: {
+				[`cognito-idp.${this.manifest.Region}.amazonaws.com/${this.manifest.UserPool}`]: token
+			}
+		})
+		
+		/* Clear previously cached ID if token is absent */
+		if (!token) this.AWS.config.credentials.clearCachedId()
+
+		return this.AWS.config.credentials.getPromise()
 	}
 
-	/* Function to determine if an error returned by a
-	 * lambda call is an authentication error.
-	 */
-	isAuthError (error) {
-		const authErrors = /No data|Token is expired|Invalid login token|Missing credentials in config|is not authorized to perform|Not Found/
-
-		return  (typeof error === 'string' && error.match(authErrors)) ||
-				(typeof error.message === 'string' && error.message.match(authErrors))
+	refreshCredentials () {
+		if (!this.AWS.config.credentials.refreshToken)
+			throw new Error('No Refresh Token')
+		
+		this.AWS.config.credentials = new AWS.CognitoIdentityCredentials({
+			IdentityPoolId: this.manifest.IdentityPool
+		})
+		this.AWS.config.credentials.clearCachedId()
+		
+		const refreshPayload = {
+			action: 'REFRESH',
+			attributes: {
+				refreshToken: this.AWS.config.credentials.refreshToken
+			}
+		}
+		return this.invoke('AuthLambda', refreshPayload)
+			.then(account => {
+				return this.getCredentials(this.AWS.config.credentials.token)
+			})
 	}
 	
-	/* Create a Cloud Connect session and try
-	 * login with provided username / password.
-	 */
+	/* Perform steps needed to create a Cognito Identity */
 	login (username, password) {
-		this.session = new CloudConnectSession(this.manifest, this.invoke.bind(this))
-		return this.session.login(username, password)
+
+		return this.getCredentials()
+			.then(() => {
+
+				/* Invoke an AuthLambda call to obtain an
+				 * authentication token from Cloud Connect.
+				 */
+				const loginPayload = {
+					action: 'LOGIN',
+					attributes: {
+						userName: username,
+						password: password
+					}
+				}
+				return this.invoke('AuthLambda', loginPayload)
+			})
+			.then(account => {
+
+				/* Get AWS Cognito raised privilege credential
+				 * using the obtained Cloud Connect auth token.
+				 */
+				return this.getCredentials(account.credentials.token)
+			})
 	}
 }
 
